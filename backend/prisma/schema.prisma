@@ -37,6 +37,7 @@ enum InterviewStatus {
   COMPLETED
   CANCELLED
   MOVED_TO_NEXT_ROUND
+  PENDING
 }
 
 enum UserStatus {
@@ -61,6 +62,7 @@ model User {
   interviewsAsInterviewer Interview[] @relation("InterviewerInterviews")
   interviewsAsInterviewee Interview[] @relation("IntervieweeInterviews")
   questionsCreated        Question[]  @relation("CreatedQuestions")
+  interviewSessions       InterviewSession[]
 }
 
 model EmailOtp {
@@ -92,6 +94,8 @@ model Interview {
   status    InterviewStatus @default(SCHEDULED)
   round     Int             @default(1)
   meetLink  String?
+  interviewerAccepted Boolean @default(false)
+  intervieweeAccepted Boolean @default(false)
 
   // Relations
   hrId          Int
@@ -106,6 +110,7 @@ model Interview {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   deletedAt DateTime?
+  sessions  InterviewSession[]
 }
 
 model Question {
@@ -147,5 +152,16 @@ model InterviewQuestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([interviewId, questionId]) // Prevent duplicate question assignment to same interview? Or allow if they can ask again? Assuming unique for now.
+  @@unique([interviewId, questionId])
+}
+
+model InterviewSession {
+  id          Int      @id @default(autoincrement())
+  interviewId Int
+  userId      Int
+  joinedAt    DateTime @default(now())
+  leftAt      DateTime?
+
+  interview   Interview @relation(fields: [interviewId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
 }

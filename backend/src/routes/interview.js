@@ -31,4 +31,7 @@ interviewRouter.post("/:id/answer", validateTimeWindow, controller.saveAnswer);
 // Next Round: HR Only
 interviewRouter.post("/:id/next-round", checkRole(['HR']), controller.createNextRound);
 
+// Accept Interview: Interviewer and Interviewee
+interviewRouter.post("/:id/accept", controller.acceptInterview);
+
 module.exports = interviewRouter;

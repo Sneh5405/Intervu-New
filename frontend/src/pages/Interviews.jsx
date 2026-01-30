@@ -56,54 +56,76 @@ const Interviews = () => {
                                 <th className="p-4">Type</th>
                                 <th className="p-4">Participants</th>
                                 <th className="p-4">Status</th>
-                                {user.role === 'HR' && <th className="p-4">Actions</th>}
+                                <th className="p-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700">
-                            {interviews.map((interview) => (
-                                <tr key={interview.id} className="hover:bg-slate-700/30 transition-colors">
-                                    <td className="p-4">
-                                        <div className="font-medium text-white">
-                                            {new Date(interview.startTime).toLocaleDateString()}
-                                        </div>
-                                        <div className="text-xs text-slate-400">
-                                            {new Date(interview.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                                            {new Date(interview.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-slate-300">
-                                        Mock Interface {/* Type not in schema yet? Wait, schema has QuestionType but interview type? */}
-                                        {/* Actually schema doesn't have 'type' field on Interview! It has 'round'. */}
-                                        {/* My controller CreateInterview used 'type' but schema doesn't have it. */}
-                                        {/* Checking schema again... Interview model has startTime, endTime, status, round, meetLink. */}
-                                        {/* I missed adding 'type' to schema if it was required. But User request said 'Interview status flow'. */}
-                                        {/* I'll assume standard type or just show round. */}
-                                        Round {interview.round}
-                                    </td>
-                                    <td className="p-4 text-sm text-slate-400">
-                                        <div><span className="text-indigo-400">Interviewer:</span> {interview.interviewer?.name}</div>
-                                        <div><span className="text-emerald-400">Candidate:</span> {interview.interviewee?.name}</div>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-semibold ${interview.status === 'SCHEDULED' ? 'bg-blue-500/20 text-blue-400' :
-                                                interview.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' :
-                                                    'bg-red-500/20 text-red-400'
-                                            }`}>
-                                            {interview.status}
-                                        </span>
-                                    </td>
-                                    {user.role === 'HR' && (
+                            {interviews.map((interview) => {
+                                const isInterviewer = user.id === interview.interviewerId;
+                                const isInterviewee = user.id === interview.intervieweeId;
+                                const needsAcceptance = interview.status === 'PENDING' && (
+                                    (isInterviewer && !interview.interviewerAccepted) ||
+                                    (isInterviewee && !interview.intervieweeAccepted)
+                                );
+
+                                return (
+                                    <tr key={interview.id} className="hover:bg-slate-700/30 transition-colors">
                                         <td className="p-4">
-                                            <button
-                                                onClick={() => handleDelete(interview.id)}
-                                                className="text-red-400 hover:text-red-300 text-sm font-medium"
-                                            >
-                                                Delete
-                                            </button>
+                                            <div className="font-medium text-white">
+                                                {new Date(interview.startTime).toLocaleDateString()}
+                                            </div>
+                                            <div className="text-xs text-slate-400">
+                                                {new Date(interview.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                                                {new Date(interview.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
                                         </td>
-                                    )}
-                                </tr>
-                            ))}
+                                        <td className="p-4 text-slate-300">
+                                            Round {interview.round}
+                                        </td>
+                                        <td className="p-4 text-sm text-slate-400">
+                                            <div><span className="text-indigo-400">Interviewer:</span> {interview.interviewer?.name}</div>
+                                            <div><span className="text-emerald-400">Candidate:</span> {interview.interviewee?.name}</div>
+                                        </td>
+                                        <td className="p-4">
+                                            <span className={`px-2 py-1 rounded text-xs font-semibold ${interview.status === 'SCHEDULED' ? 'bg-blue-500/20 text-blue-400' :
+                                                interview.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' :
+                                                    interview.status === 'PENDING' ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        'bg-red-500/20 text-red-400'
+                                                }`}>
+                                                {interview.status}
+                                            </span>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex gap-2">
+                                                {needsAcceptance && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="primary"
+                                                        onClick={async () => {
+                                                            try {
+                                                                await interviewService.accept(interview.id);
+                                                                fetchInterviews();
+                                                            } catch (e) {
+                                                                alert("Failed to accept");
+                                                            }
+                                                        }}
+                                                    >
+                                                        Accept
+                                                    </Button>
+                                                )}
+                                                {user.role === 'HR' && (
+                                                    <button
+                                                        onClick={() => handleDelete(interview.id)}
+                                                        className="text-red-400 hover:text-red-300 text-sm font-medium"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

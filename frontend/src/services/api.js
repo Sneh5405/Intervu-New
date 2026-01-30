@@ -20,6 +20,7 @@ export const interviewService = {
     delete: (id) => api.delete(`/interviews/${id}`),
     saveAnswer: (id, data) => api.post(`/interviews/${id}/answer`, data),
     nextRound: (id, data) => api.post(`/interviews/${id}/next-round`, data),
+    accept: (id) => api.post(`/interviews/${id}/accept`),
 };
 
 export const questionService = {

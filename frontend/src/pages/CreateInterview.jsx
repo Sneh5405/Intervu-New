@@ -7,31 +7,13 @@ import Input from '../components/ui/Input';
 const CreateInterview = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
-    const [interviewers, setInterviewers] = useState([]);
-    const [interviewees, setInterviewees] = useState([]);
 
     const [formData, setFormData] = useState({
         startTime: '',
         duration: 60, // minutes
-        interviewerId: '',
-        intervieweeId: '',
+        interviewerEmail: '',
+        candidateEmail: '',
     });
-
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
-        try {
-            // Using admin endpoint to get all users
-            const response = await api.get('/admin/users');
-            const users = response.data;
-            setInterviewers(users.filter(u => u.role === 'INTERVIEWER' && u.status === 'ACTIVE'));
-            setInterviewees(users.filter(u => u.role === 'INTERVIEWEE' && u.status === 'ACTIVE'));
-        } catch (error) {
-            console.error("Failed to fetch users", error);
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -45,15 +27,15 @@ const CreateInterview = () => {
                 startTime: start.toISOString(),
                 endTime: end.toISOString(),
                 hrId: JSON.parse(localStorage.getItem('user')).id, // Current HR
-                interviewerId: parseInt(formData.interviewerId),
-                intervieweeId: parseInt(formData.intervieweeId),
-                type: 'TECHNICAL' // Hardcoded for now as schema doesn't strictly enforce generic type
+                interviewerEmail: formData.interviewerEmail,
+                candidateEmail: formData.candidateEmail,
+                type: 'TECHNICAL'
             });
 
             navigate('/interviews');
         } catch (error) {
             console.error("Create failed", error);
-            alert("Failed to create interview. Check console.");
+            alert(error.response?.data?.error || "Failed to create interview. Check console.");
         } finally {
             setLoading(false);
         }
@@ -89,33 +71,27 @@ const CreateInterview = () => {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">Interviewer</label>
-                    <select
-                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                        value={formData.interviewerId}
-                        onChange={(e) => setFormData({ ...formData, interviewerId: e.target.value })}
+                    <label className="block text-sm font-medium text-slate-300 mb-1">Interviewer Email</label>
+                    <Input
+                        type="email"
+                        placeholder="interviewer@example.com"
+                        value={formData.interviewerEmail}
+                        onChange={(e) => setFormData({ ...formData, interviewerEmail: e.target.value })}
                         required
-                    >
-                        <option value="">Select Interviewer</option>
-                        {interviewers.map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
-                    </select>
+                        className="w-full bg-slate-900 border-slate-700 text-white"
+                    />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">Candidate</label>
-                    <select
-                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                        value={formData.intervieweeId}
-                        onChange={(e) => setFormData({ ...formData, intervieweeId: e.target.value })}
+                    <label className="block text-sm font-medium text-slate-300 mb-1">Candidate Email</label>
+                    <Input
+                        type="email"
+                        placeholder="candidate@example.com"
+                        value={formData.candidateEmail}
+                        onChange={(e) => setFormData({ ...formData, candidateEmail: e.target.value })}
                         required
-                    >
-                        <option value="">Select Candidate</option>
-                        {interviewees.map(u => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
-                    </select>
+                        className="w-full bg-slate-900 border-slate-700 text-white"
+                    />
                 </div>
 
                 <div className="flex gap-4 pt-4">

@@ -100,11 +100,18 @@ const VideoChat = ({ interviewId, isInterviewer }) => {
             }
         });
 
+        socket.on('force-disconnect', (reason) => {
+            alert(`Disconnected: ${reason}`);
+            // Force reload or redirect
+            window.location.reload();
+        });
+
         return () => {
             socket.off('user-connected');
             socket.off('offer');
             socket.off('answer');
             socket.off('ice-candidate');
+            socket.off('force-disconnect');
         };
 
     }, [socket, localStream, interviewId]);
@@ -143,8 +150,26 @@ const VideoChat = ({ interviewId, isInterviewer }) => {
         }
     };
 
+    const endCall = () => {
+        if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
+        }
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        window.location.reload(); // Simple way to reset state/view
+    };
+
     return (
         <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 bg-slate-900/90 p-2 rounded-xl border border-slate-700 shadow-2xl w-64 md:w-80">
+            {/* Header / Role Badge */}
+            <div className="flex justify-between items-center px-1 mb-1">
+                <span className="text-xs font-semibold text-slate-400">
+                    {isInterviewer ? 'Candidate View' : 'Interviewer View'}
+                </span>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" title="Connected"></div>
+            </div>
+
             {/* Remote Video (Main) */}
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden border border-slate-700">
                 {remoteStream ? (
@@ -176,6 +201,13 @@ const VideoChat = ({ interviewId, isInterviewer }) => {
                     title={isVideoOff ? "Start Video" : "Stop Video"}
                 >
                     {isVideoOff ? "📷" : "📸"}
+                </button>
+                <button
+                    onClick={endCall}
+                    className="p-2 rounded-full bg-red-600 hover:bg-red-700 text-white transition-colors"
+                    title="End Call"
+                >
+                    📞
                 </button>
             </div>
         </div>

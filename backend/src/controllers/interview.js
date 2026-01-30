@@ -1,36 +1,36 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-// Create Interview
+// Create Interview (By Email)
 const createInterview = async (req, res) => {
     try {
-        const { startTime, endTime, hrId, interviewerId, intervieweeId, type, questions } = req.body;
+        const { startTime, endTime, hrId, interviewerEmail, candidateEmail, type } = req.body;
 
-        // Basic validation
-        if (!startTime || !endTime || !hrId || !interviewerId || !intervieweeId) {
+        if (!startTime || !endTime || !hrId || !interviewerEmail || !candidateEmail) {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
-        // Verify users exist and have correct roles
-        // This is a bit heavy, maybe optimize? For now, safety first.
         const hr = await prisma.user.findUnique({ where: { id: hrId } });
-        const interviewer = await prisma.user.findUnique({ where: { id: interviewerId } });
-        const interviewee = await prisma.user.findUnique({ where: { id: intervieweeId } });
+        const interviewer = await prisma.user.findUnique({ where: { email: interviewerEmail } });
+        const interviewee = await prisma.user.findUnique({ where: { email: candidateEmail } });
 
         if (!hr || hr.role !== 'HR') return res.status(400).json({ error: "Invalid HR ID" });
-        if (!interviewer || interviewer.role !== 'INTERVIEWER') return res.status(400).json({ error: "Invalid Interviewer ID" });
-        if (!interviewee || interviewee.role !== 'INTERVIEWEE') return res.status(400).json({ error: "Invalid Interviewee ID" });
+        if (!interviewer) return res.status(404).json({ error: `Interviewer not found: ${interviewerEmail}` });
+        if (!interviewee) return res.status(404).json({ error: `Candidate not found: ${candidateEmail}` });
 
         const interview = await prisma.interview.create({
             data: {
                 startTime: new Date(startTime),
                 endTime: new Date(endTime),
                 hrId,
-                interviewerId,
-                intervieweeId,
-                status: 'SCHEDULED' // Default
+                interviewerId: interviewer.id,
+                intervieweeId: interviewee.id,
+                status: 'PENDING'
             }
         });
+
+        // Send Emails (TODO: Integrate with Email Service)
+        // console.log(`Sending invites to ${interviewerEmail} and ${candidateEmail}`);
 
         res.status(201).json(interview);
     } catch (error) {
@@ -230,7 +230,50 @@ const saveAnswer = async (req, res) => {
     }
 };
 
-// Create Next Round
+// Accept Interview Invite
+const acceptInterview = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const interview = await prisma.interview.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+        let updateData = {};
+
+        if (interview.interviewerId === userId) {
+            updateData.interviewerAccepted = true;
+        } else if (interview.intervieweeId === userId) {
+            updateData.intervieweeAccepted = true;
+        } else {
+            return res.status(403).json({ error: "You are not a participant in this interview" });
+        }
+
+        // Check if logic needs to flip status
+        // We need to fetch the *updated* state or assume current state + change
+        // Safest is to update and check result, or check current + change
+        const isInterviewerDone = updateData.interviewerAccepted || interview.interviewerAccepted;
+        const isCandidateDone = updateData.intervieweeAccepted || interview.intervieweeAccepted;
+
+        if (isInterviewerDone && isCandidateDone) {
+            updateData.status = 'SCHEDULED';
+        }
+
+        const updatedInterview = await prisma.interview.update({
+            where: { id: parseInt(id) },
+            data: updateData
+        });
+
+        res.json(updatedInterview);
+    } catch (error) {
+        console.error("Accept Interview Error:", error);
+        res.status(500).json({ error: "Failed to accept interview" });
+    }
+};
+
 const createNextRound = async (req, res) => {
     try {
         const { id } = req.params;
@@ -261,9 +304,11 @@ const createNextRound = async (req, res) => {
                 intervieweeId: currentInterview.intervieweeId,
                 startTime: startTime ? new Date(startTime) : defaultStart,
                 endTime: endTime ? new Date(endTime) : defaultEnd,
-                status: 'SCHEDULED',
+                status: 'PENDING', // Next round starts pending acceptance? Or auto-scheduled? Let's say pending.
                 round: nextRoundNumber,
-                meetLink: currentInterview.meetLink // Copy link?
+                meetLink: currentInterview.meetLink,
+                interviewerAccepted: false,
+                intervieweeAccepted: false
             }
         });
 
@@ -287,5 +332,6 @@ module.exports = {
     updateInterview,
     deleteInterview,
     saveAnswer,
-    createNextRound
+    createNextRound,
+    acceptInterview
 };

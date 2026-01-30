@@ -21,13 +21,7 @@ adminRouter.get("/users", async (req, res) => {
                 email: true,
                 name: true,
                 role: true,
-                status: true,
-                createdAt: true // Assuming createdAt exists? It's not in schema shown in Step 17... Wait.
-                // User model in Step 17 did NOT have createdAt.
-                // It had `interviewsAsHr`, `emailOtp`, etc.
-                // I should double check User model fields.
-                // User model: id, email, password, name, role, status (added), emailVerified, emailOtp, refreshToken, relations.
-                // No createdAt in User? That's common to miss. I won't select it.
+                status: true
             }
         });
         res.json(users);
