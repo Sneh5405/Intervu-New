@@ -1,0 +1,21 @@
+const path = require("path")
+require("dotenv").config({
+  path: path.resolve(__dirname, "../../.env")
+})
+
+const nodemailer = require("nodemailer")
+
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+})
+
+transporter.verify()
+  .then(() => console.log("Email config OK"))
+  .catch(console.error)
+
+module.exports = transporter
