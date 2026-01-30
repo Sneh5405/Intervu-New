@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 import QuestionRunner from '../components/QuestionRunner/QuestionRunner';
+import VideoChat from '../components/VideoChat/VideoChat';
 
 const InterviewDetail = () => {
     const { id } = useParams();
@@ -117,7 +118,7 @@ const InterviewDetail = () => {
                 </div>
 
                 {viewMode === 'RUNNER' ? (
-                    <div className="p-4 h-full bg-slate-900">
+                    <div className="p-4 h-full bg-slate-900 relative">
                         <QuestionRunner
                             questionAssignment={interview.questions[currentQuestionIndex]}
                             interviewId={id}
@@ -126,6 +127,8 @@ const InterviewDetail = () => {
                             isFirst={currentQuestionIndex === 0}
                             isLast={currentQuestionIndex === interview.questions.length - 1}
                         />
+                        {/* Video Chat Overlay */}
+                        <VideoChat interviewId={id} isInterviewer={isInterviewer} />
                     </div>
                 ) : (
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
