@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { interviewService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import Button from '../components/ui/Button';
 import QuestionRunner from '../components/QuestionRunner/QuestionRunner';
 
@@ -59,6 +60,25 @@ const InterviewDetail = () => {
             alert("No questions assigned to this interview.");
         }
     };
+
+    // Socket Logic
+    const socket = useSocket();
+    const [participants, setParticipants] = useState([]);
+
+    useEffect(() => {
+        if (socket && viewMode === 'RUNNER') {
+            socket.emit('join-room', id);
+
+            socket.on('user-connected', (userId) => {
+                console.log("User connected:", userId);
+                setParticipants(prev => [...prev, userId]); // Simple list for now
+            });
+
+            return () => {
+                socket.off('user-connected');
+            }
+        }
+    }, [socket, viewMode, id]);
 
     if (loading) return <div className="p-8 text-center text-slate-400">Loading details...</div>;
     if (!interview) return <div className="p-8 text-center text-red-400">Interview not found or access denied.</div>;

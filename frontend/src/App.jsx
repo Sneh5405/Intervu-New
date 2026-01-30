@@ -11,37 +11,40 @@ import InterviewDetail from './pages/InterviewDetail';
 import Questions from './pages/Questions';
 import QuestionForm from './pages/QuestionForm';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import './App.css'
 
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-slate-900 text-white">
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+        <SocketProvider>
+          <div className="min-h-screen bg-slate-900 text-white">
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-            {/* Protected Role-Based Routes */}
-            <Route element={<RoleRoute allowedRoles={['HR', 'ADMIN']} />}>
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/interviews/create" element={<CreateInterview />} />
-            </Route>
+              {/* Protected Role-Based Routes */}
+              <Route element={<RoleRoute allowedRoles={['HR', 'ADMIN']} />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/interviews/create" element={<CreateInterview />} />
+              </Route>
 
-            <Route element={<RoleRoute allowedRoles={['HR', 'INTERVIEWER', 'INTERVIEWEE']} />}>
-              <Route path="/interviews" element={<Interviews />} />
-              <Route path="/interviews/:id" element={<InterviewDetail />} />
-            </Route>
+              <Route element={<RoleRoute allowedRoles={['HR', 'INTERVIEWER', 'INTERVIEWEE']} />}>
+                <Route path="/interviews" element={<Interviews />} />
+                <Route path="/interviews/:id" element={<InterviewDetail />} />
+              </Route>
 
-            {/* Question Bank Routes - HR & Interviewer only */}
-            <Route element={<RoleRoute allowedRoles={['HR', 'INTERVIEWER']} />}>
-              <Route path="/questions" element={<Questions />} />
-              <Route path="/questions/create" element={<QuestionForm />} />
-              <Route path="/questions/:id/edit" element={<QuestionForm />} />
-            </Route>          </Routes>
-        </div>
+              {/* Question Bank Routes - HR & Interviewer only */}
+              <Route element={<RoleRoute allowedRoles={['HR', 'INTERVIEWER']} />}>
+                <Route path="/questions" element={<Questions />} />
+                <Route path="/questions/create" element={<QuestionForm />} />
+                <Route path="/questions/:id/edit" element={<QuestionForm />} />
+              </Route>          </Routes>
+          </div>
+        </SocketProvider>
       </AuthProvider>
     </Router>
   )

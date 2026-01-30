@@ -25,9 +25,14 @@ app.use("/api/questions", questionRoute);
 
 
 
-app.listen(port, async () => {
-    try {
+const http = require("http");
+const { initSocket } = require("./socket");
 
+const server = http.createServer(app);
+initSocket(server);
+
+server.listen(port, async () => {
+    try {
         await prisma.$connect();
         console.log("Database connected successfully");
     } catch (e) {
