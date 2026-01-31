@@ -28,6 +28,9 @@ const validateTimeWindow = require("../middleware/validateTimeWindow");
 // Save Answer: Authenticated (Time window validated)
 interviewRouter.post("/:id/answer", validateTimeWindow, controller.saveAnswer);
 
+// Add Question: HR/Interviewer
+interviewRouter.post("/:id/questions", checkRole(['HR', 'INTERVIEWER']), controller.addQuestionToInterview);
+
 // Next Round: HR Only
 interviewRouter.post("/:id/next-round", checkRole(['HR']), controller.createNextRound);
 

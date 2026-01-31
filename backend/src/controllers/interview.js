@@ -274,6 +274,42 @@ const acceptInterview = async (req, res) => {
     }
 };
 
+const addQuestionToInterview = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { questionId } = req.body;
+
+        // Validation: Check if interview exists
+        const interview = await prisma.interview.findUnique({ where: { id: parseInt(id) } });
+        if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+        // Check if question exists
+        const question = await prisma.question.findUnique({ where: { id: parseInt(questionId) } });
+        if (!question) return res.status(404).json({ error: "Question not found" });
+
+        // Find max order for this interview
+        const lastQuestion = await prisma.interviewQuestion.findFirst({
+            where: { interviewId: parseInt(id) },
+            orderBy: { order: 'desc' }
+        });
+        const newOrder = (lastQuestion?.order || 0) + 1;
+
+        // Create link
+        const interviewQuestion = await prisma.interviewQuestion.create({
+            data: {
+                interviewId: parseInt(id),
+                questionId: parseInt(questionId),
+                order: newOrder
+            }
+        });
+
+        res.status(201).json(interviewQuestion);
+    } catch (error) {
+        console.error("Add Question Error:", error);
+        res.status(500).json({ error: "Failed to add question to interview" });
+    }
+};
+
 const createNextRound = async (req, res) => {
     try {
         const { id } = req.params;
@@ -333,5 +369,6 @@ module.exports = {
     deleteInterview,
     saveAnswer,
     createNextRound,
-    acceptInterview
+    acceptInterview,
+    addQuestionToInterview
 };

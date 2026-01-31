@@ -97,6 +97,11 @@ const Interviews = () => {
                                         </td>
                                         <td className="p-4">
                                             <div className="flex gap-2">
+                                                <Link to={`/interviews/${interview.id}`}>
+                                                    <Button size="sm" variant="secondary">
+                                                        {interview.status === 'SCHEDULED' ? 'Join / View' : 'View Details'}
+                                                    </Button>
+                                                </Link>
                                                 {needsAcceptance && (
                                                     <Button
                                                         size="sm"
@@ -116,7 +121,7 @@ const Interviews = () => {
                                                 {user.role === 'HR' && (
                                                     <button
                                                         onClick={() => handleDelete(interview.id)}
-                                                        className="text-red-400 hover:text-red-300 text-sm font-medium"
+                                                        className="text-red-400 hover:text-red-300 text-sm font-medium ml-2"
                                                     >
                                                         Delete
                                                     </button>

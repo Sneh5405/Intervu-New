@@ -27,13 +27,18 @@ const loginController = async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        // Store refresh token in DB
-        await prisma.refreshToken.create({
-            data: {
+        // Store refresh token in DB (Upsert)
+        await prisma.refreshToken.upsert({
+            where: { userId: user.id },
+            update: {
+                token: refreshToken,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+            },
+            create: {
                 token: refreshToken,
                 userId: user.id,
                 device: req.headers['user-agent'] || 'Unknown',
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
             }
         });
 

@@ -19,6 +19,7 @@ export const interviewService = {
     update: (id, data) => api.patch(`/interviews/${id}`, data),
     delete: (id) => api.delete(`/interviews/${id}`),
     saveAnswer: (id, data) => api.post(`/interviews/${id}/answer`, data),
+    addQuestion: (id, data) => api.post(`/interviews/${id}/questions`, data),
     nextRound: (id, data) => api.post(`/interviews/${id}/next-round`, data),
     accept: (id) => api.post(`/interviews/${id}/accept`),
 };
