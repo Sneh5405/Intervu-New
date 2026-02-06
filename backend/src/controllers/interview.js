@@ -1,3 +1,4 @@
+const { getIo } = require('../socket');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -302,6 +303,13 @@ const addQuestionToInterview = async (req, res) => {
                 order: newOrder
             }
         });
+
+        // Emit socket event
+        try {
+            getIo().to(id).emit('question-added', interviewQuestion);
+        } catch (socketError) {
+            console.error("Socket emit failed:", socketError);
+        }
 
         res.status(201).json(interviewQuestion);
     } catch (error) {

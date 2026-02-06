@@ -58,33 +58,34 @@ const Interviews = () => {
     if (loading) return <div className="p-8 text-center text-slate-400">Loading interviews...</div>;
 
     return (
-        <div className="container mx-auto p-4 md:p-8">
-            <div className="flex justify-between items-center mb-6">
+        <div className="container mx-auto p-4 md:p-8 mt-6">
+            <div className="flex justify-between items-center mb-8">
                 <h1 className="text-3xl font-bold text-indigo-400">Interviews</h1>
-                {user.role === 'HR' && (
-                    <Link to="/interviews/create">
-                        <Button variant="primary">Schedule New</Button>
-                    </Link>
-                )}
-            </div>
 
-            {/* Filter Dropdown */}
-            <div className="mb-6">
-                <div className="relative inline-block w-64">
-                    <select
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        className="w-full bg-slate-800 text-white border border-slate-600 hover:border-slate-500 rounded-lg px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-medium"
-                    >
-                        <option value="Upcoming">Upcoming</option>
-                        <option value="Ongoing">Ongoing</option>
-                        <option value="Past History">Past History</option>
-                    </select>
-                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+                <div className="flex items-center gap-4">
+                    {/* Filter Dropdown */}
+                    <div className="relative inline-block w-48">
+                        <select
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            className="w-full bg-slate-800 text-white border border-slate-600 hover:border-slate-500 rounded-lg px-3 py-2 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-medium text-sm"
+                        >
+                            <option value="Upcoming">Upcoming</option>
+                            <option value="Ongoing">Ongoing</option>
+                            <option value="Past History">Past History</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
                     </div>
+
+                    {user.role === 'HR' && (
+                        <Link to="/interviews/create">
+                            <Button variant="primary">Schedule New</Button>
+                        </Link>
+                    )}
                 </div>
             </div>
 

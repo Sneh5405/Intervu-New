@@ -107,11 +107,17 @@ const InterviewDetail = () => {
 
             socket.on('user-connected', (userId) => {
                 console.log("User connected:", userId);
-                setParticipants(prev => [...prev, userId]); // Simple list for now
+                setParticipants(prev => [...prev, userId]);
+            });
+
+            socket.on('question-added', () => {
+                console.log("Question added, refreshing...");
+                fetchInterview();
             });
 
             return () => {
                 socket.off('user-connected');
+                socket.off('question-added');
             }
         }
     }, [socket, viewMode, id]);
@@ -149,7 +155,7 @@ const InterviewDetail = () => {
     const isCandidate = user.id === interview.intervieweeId;
 
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-4xl">
+        <div className={`container mx-auto p-4 md:p-8 ${viewMode === 'RUNNER' ? 'max-w-full' : 'max-w-4xl'}`}>
             <div className={`bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden ${viewMode === 'RUNNER' ? 'h-[calc(100vh-40px)]' : ''}`}>
                 <div className="p-6 border-b border-slate-700 flex justify-between items-start">
                     <div>
