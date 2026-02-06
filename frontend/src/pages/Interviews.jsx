@@ -7,7 +7,28 @@ import Button from '../components/ui/Button';
 const Interviews = () => {
     const [interviews, setInterviews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('Upcoming');
     const { user } = useAuth();
+
+    const getFilteredInterviews = () => {
+        const now = new Date();
+        switch (filter) {
+            case 'Upcoming':
+                return interviews.filter(i =>
+                    ['SCHEDULED', 'PENDING'].includes(i.status) &&
+                    new Date(i.endTime) > now
+                );
+            case 'Ongoing':
+                return interviews.filter(i => ['MOVED_TO_NEXT_ROUND'].includes(i.status));
+            case 'Past History':
+                return interviews.filter(i =>
+                    ['COMPLETED', 'CANCELLED'].includes(i.status) ||
+                    (['SCHEDULED', 'PENDING'].includes(i.status) && new Date(i.endTime) <= now)
+                );
+            default:
+                return interviews;
+        }
+    };
 
     useEffect(() => {
         fetchInterviews();
@@ -47,55 +68,44 @@ const Interviews = () => {
                 )}
             </div>
 
-            {/* Upcoming / Active Interviews */}
-            <div className="mb-10">
-                <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    Upcoming
-                </h2>
-                <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
-                    <InterviewTable
-                        interviews={interviews.filter(i => ['SCHEDULED', 'PENDING'].includes(i.status))}
-                        user={user}
-                        handleDelete={handleDelete}
-                        fetchInterviews={fetchInterviews}
-                        emptyMessage="No upcoming interviews."
-                    />
+            {/* Filter Dropdown */}
+            <div className="mb-6">
+                <div className="relative inline-block w-64">
+                    <select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="w-full bg-slate-800 text-white border border-slate-600 hover:border-slate-500 rounded-lg px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all cursor-pointer font-medium"
+                    >
+                        <option value="Upcoming">Upcoming</option>
+                        <option value="Ongoing">Ongoing</option>
+                        <option value="Past History">Past History</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-slate-400">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
                 </div>
             </div>
 
-            {/* Ongoing / In-Progress Rounds */}
+            {/* Filtered List */}
             <div className="mb-10">
-                <h2 className="text-xl font-semibold text-purple-400 mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                    Ongoing
+                <h2 className={`text-xl font-semibold mb-4 flex items-center gap-2 ${filter === 'Upcoming' ? 'text-white' :
+                    filter === 'Ongoing' ? 'text-purple-400' : 'text-slate-400'
+                    }`}>
+                    <span className={`w-2 h-2 rounded-full ${filter === 'Upcoming' ? 'bg-blue-500' :
+                        filter === 'Ongoing' ? 'bg-purple-500' : 'bg-slate-500'
+                        }`}></span>
+                    {filter}
                 </h2>
                 <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
                     <InterviewTable
-                        interviews={interviews.filter(i => ['MOVED_TO_NEXT_ROUND'].includes(i.status))}
+                        interviews={getFilteredInterviews()}
                         user={user}
                         handleDelete={handleDelete}
                         fetchInterviews={fetchInterviews}
-                        emptyMessage="No ongoing process interviews."
-                        isPast={true}
-                    />
-                </div>
-            </div>
-
-            {/* Past / Completed Interviews */}
-            <div>
-                <h2 className="text-xl font-semibold text-slate-400 mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-slate-500"></span>
-                    Past History
-                </h2>
-                <div className="bg-slate-800/50 rounded-xl shadow border border-slate-700/50 overflow-hidden">
-                    <InterviewTable
-                        interviews={interviews.filter(i => ['COMPLETED', 'CANCELLED'].includes(i.status))}
-                        user={user}
-                        handleDelete={handleDelete}
-                        fetchInterviews={fetchInterviews}
-                        emptyMessage="No past interviews."
-                        isPast={true}
+                        emptyMessage={`No ${filter.toLowerCase()} interviews found.`}
+                        isPast={filter !== 'Upcoming'}
                     />
                 </div>
             </div>
