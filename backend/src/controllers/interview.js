@@ -11,6 +11,9 @@ const createInterview = async (req, res) => {
             return res.status(400).json({ error: "Missing required fields" });
         }
 
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+
         const hr = await prisma.user.findUnique({ where: { id: hrId } });
         const interviewer = await prisma.user.findUnique({ where: { email: interviewerEmail } });
         const interviewee = await prisma.user.findUnique({ where: { email: candidateEmail } });
@@ -19,10 +22,26 @@ const createInterview = async (req, res) => {
         if (!interviewer) return res.status(404).json({ error: `Interviewer not found: ${interviewerEmail}` });
         if (!interviewee) return res.status(404).json({ error: `Candidate not found: ${candidateEmail}` });
 
+        // Check for overlapping interviews for interviewer
+        const overlap = await prisma.interview.findFirst({
+            where: {
+                interviewerId: interviewer.id,
+                status: { in: ['SCHEDULED', 'PENDING'] },
+                AND: [
+                    { startTime: { lt: end } },
+                    { endTime: { gt: start } }
+                ]
+            }
+        });
+
+        if (overlap) {
+            return res.status(409).json({ error: "Interviewer has a conflicting interview at this time" });
+        }
+
         const interview = await prisma.interview.create({
             data: {
-                startTime: new Date(startTime),
-                endTime: new Date(endTime),
+                startTime: start,
+                endTime: end,
                 hrId,
                 interviewerId: interviewer.id,
                 intervieweeId: interviewee.id,
@@ -37,6 +56,85 @@ const createInterview = async (req, res) => {
     } catch (error) {
         console.error("Create Interview Error:", error);
         res.status(500).json({ error: "Failed to create interview" });
+    }
+};
+
+// ... (skip intermediate functions)
+
+// Accept Interview Invite
+const acceptInterview = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        const interview = await prisma.interview.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+        // Check 24-hour expiration (only relevant for pending interviews)
+        if (interview.status === 'PENDING') {
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+            const now = new Date();
+            const created = new Date(interview.createdAt);
+
+            if (now.getTime() - created.getTime() > ONE_DAY_MS) {
+                return res.status(400).json({ error: "This interview request has expired (24h limit)." });
+            }
+        }
+
+        let updateData = {};
+
+        if (interview.interviewerId === userId) {
+            updateData.interviewerAccepted = true;
+        } else if (interview.intervieweeId === userId) {
+            updateData.intervieweeAccepted = true;
+        } else {
+            return res.status(403).json({ error: "You are not a participant in this interview" });
+        }
+
+        // Check if logic needs to flip status
+        // We need to fetch the *updated* state or assume current state + change
+        // Safest is to update and check result, or check current + change
+        const isInterviewerDone = updateData.interviewerAccepted || interview.interviewerAccepted;
+        const isCandidateDone = updateData.intervieweeAccepted || interview.intervieweeAccepted;
+
+        // Note: Logic simplified as we are restricting button for interviewer, but if they accept via API, it counts.
+        // If one person accepts, status stays PENDING until both? Or strict rules?
+        // Current logic: wait for both?
+        // Wait, user request implies only interviewee needs to accept? 
+        // "time limit od 24 hours for interviewee to accpet it"
+        // If removing accept button for interviewer, do we assume interviewer auto-accepts?
+        // Usually, if HR schedules it, interviewer is assigned. Maybe they implicitly accept?
+        // For now, I will keep 'both must accept' logic for 'SCHEDULED' state to trigger, 
+        // BUT if I prevent interviewer from clicking accept, the interview will never become SCHEDULED.
+        // User said "interviewer does not have accept button". This implies the interviewer *should not* need to accept, 
+        // OR they accept implicitly.
+        // Let's assume Interviewer is "accepted" by default or we modify the status logic.
+        // OR: the schema defaults `interviewerAccepted` to false. 
+        // If I hide the button, they can't accept.
+        // So I should probably set `interviewerAccepted: true` if the creator is HR? 
+        // Or change logic: if interviewee accepts, it is confirmed?
+        // Let's assume since HR schedules it, the interviewer is 'tentatively' booked, but maybe they should accept.
+        // But the USER said "interviewer does not have accept button".
+        // I will change the logic: If interviewee accepts, and interviewer hasn't explicitly rejected (which is not an option yet), we consider it SCHEDULED?
+        // Or wait, maybe checking `interviewerAccepted` is unnecessary if user wants to remove that step?
+        // Let's try: if intervieweeAccepted becomes true, set status = SCHEDULED (assuming interviewer is implicitly OK).
+
+        if (updateData.intervieweeAccepted) {
+            updateData.status = 'SCHEDULED';
+        }
+
+        const updatedInterview = await prisma.interview.update({
+            where: { id: parseInt(id) },
+            data: updateData
+        });
+
+        res.json(updatedInterview);
+    } catch (error) {
+        console.error("Accept Interview Error:", error);
+        res.status(500).json({ error: "Failed to accept interview" });
     }
 };
 
@@ -231,49 +329,7 @@ const saveAnswer = async (req, res) => {
     }
 };
 
-// Accept Interview Invite
-const acceptInterview = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user.id;
 
-        const interview = await prisma.interview.findUnique({
-            where: { id: parseInt(id) }
-        });
-
-        if (!interview) return res.status(404).json({ error: "Interview not found" });
-
-        let updateData = {};
-
-        if (interview.interviewerId === userId) {
-            updateData.interviewerAccepted = true;
-        } else if (interview.intervieweeId === userId) {
-            updateData.intervieweeAccepted = true;
-        } else {
-            return res.status(403).json({ error: "You are not a participant in this interview" });
-        }
-
-        // Check if logic needs to flip status
-        // We need to fetch the *updated* state or assume current state + change
-        // Safest is to update and check result, or check current + change
-        const isInterviewerDone = updateData.interviewerAccepted || interview.interviewerAccepted;
-        const isCandidateDone = updateData.intervieweeAccepted || interview.intervieweeAccepted;
-
-        if (isInterviewerDone && isCandidateDone) {
-            updateData.status = 'SCHEDULED';
-        }
-
-        const updatedInterview = await prisma.interview.update({
-            where: { id: parseInt(id) },
-            data: updateData
-        });
-
-        res.json(updatedInterview);
-    } catch (error) {
-        console.error("Accept Interview Error:", error);
-        res.status(500).json({ error: "Failed to accept interview" });
-    }
-};
 
 const addQuestionToInterview = async (req, res) => {
     try {

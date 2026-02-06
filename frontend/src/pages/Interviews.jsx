@@ -137,7 +137,6 @@ const InterviewTable = ({ interviews, user, handleDelete, fetchInterviews, empty
                         const isInterviewer = user.id === interview.interviewerId;
                         const isInterviewee = user.id === interview.intervieweeId;
                         const needsAcceptance = interview.status === 'PENDING' && (
-                            (isInterviewer && !interview.interviewerAccepted) ||
                             (isInterviewee && !interview.intervieweeAccepted)
                         );
 

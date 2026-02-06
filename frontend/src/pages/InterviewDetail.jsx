@@ -303,7 +303,7 @@ const InterviewDetail = () => {
 
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-slate-400 text-sm uppercase tracking-wider mb-1">Metadata</h3>
+
                                 <div className="text-slate-300">Round: {interview.round || 1}</div>
                                 {interview.meetLink && (
                                     <div className="mt-2">
