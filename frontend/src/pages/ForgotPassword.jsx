@@ -3,59 +3,51 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import { useAuth } from '../context/AuthContext';
 
-const Signup = () => {
+const ForgotPassword = () => {
     const [step, setStep] = useState(1);
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        password: '',
-        role: 'INTERVIEWEE'
-    });
-    const [otp, setOtp] = useState('');
+    const [formData, setFormData] = useState({ email: '' });
+    const [resetData, setResetData] = useState({ otp: '', newPassword: '' });
     const [userId, setUserId] = useState(null);
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
-    const { login } = useAuth();
 
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-        setError('');
-    };
-
-    const handleSignup = async (e) => {
+    const handleForgotSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setMessage('');
         try {
-            const response = await api.post('/signup', formData);
+            const response = await api.post('/forgot-password', formData);
             setUserId(response.data.userId);
             setMessage(response.data.message);
             setStep(2);
         } catch (err) {
-            setError(err.response?.data?.message || 'Signup failed');
+            setError(err.response?.data?.message || 'Failed to request password reset. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleVerify = async (e) => {
+    const handleResetSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         setMessage('');
         try {
-            const response = await api.post('/verify-otp', { userId, otp });
+            const response = await api.post('/reset-password', {
+                userId,
+                otp: resetData.otp,
+                newPassword: resetData.newPassword
+            });
             setMessage(response.data.message);
-            // Auto login after verification
-            await login(formData.email, formData.password);
-            navigate('/');
+            setTimeout(() => {
+                navigate('/login');
+            }, 2000);
         } catch (err) {
-            setError(err.response?.data?.message || 'Verification failed');
+            setError(err.response?.data?.message || 'Failed to reset password. Please check the OTP.');
         } finally {
             setLoading(false);
         }
@@ -68,17 +60,17 @@ const Signup = () => {
             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-[128px] -z-10 animate-blob animation-delay-2000"></div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.03)_0%,transparent_100%)] pointer-events-none -z-10"></div>
 
-            <div className="w-full max-w-[420px] relative z-10 transition-all duration-300 hover:transform hover:-translate-y-1 my-8">
+            <div className="w-full max-w-[420px] relative z-10 transition-all duration-300 hover:transform hover:-translate-y-1">
                 <div className="bg-slate-900/60 backdrop-blur-2xl border border-white/5 rounded-3xl p-8 sm:p-10 shadow-[0_0_40px_-15px_rgba(79,70,229,0.3)]">
                     <div className="text-center mb-8">
                         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 mb-6 shadow-lg shadow-indigo-500/30 group">
                             <span className="text-2xl font-black tracking-tighter text-white group-hover:scale-110 transition-transform">IV</span>
                         </div>
                         <h2 className="text-3xl font-extrabold bg-gradient-to-br from-white to-slate-300 bg-clip-text text-transparent">
-                            {step === 1 ? "Create Account" : "Verify Email"}
+                            {step === 1 ? "Forgot Password" : "Reset Password"}
                         </h2>
                         <p className="text-slate-400 mt-2.5 font-medium text-sm">
-                            {step === 1 ? "Join InterVue today" : `Enter the OTP sent to ${formData.email}`}
+                            {step === 1 ? "We'll send you an OTP to reset your password" : "Enter the OTP sent to your email and a new password"}
                         </p>
                     </div>
 
@@ -100,44 +92,16 @@ const Signup = () => {
                     )}
 
                     {step === 1 && (
-                        <form onSubmit={handleSignup} className="space-y-4">
-                            <Input
-                                label="Full Name"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                required
-                            />
+                        <form onSubmit={handleForgotSubmit} className="space-y-4">
                             <Input
                                 label="Email address"
                                 type="email"
                                 name="email"
+                                placeholder="name@company.com"
                                 value={formData.email}
-                                onChange={handleChange}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                 required
                             />
-                            <Input
-                                label="Password"
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required
-                            />
-
-                            <div className="flex flex-col gap-1.5 pt-1">
-                                <label className="text-sm font-semibold text-slate-300 ml-1">Role</label>
-                                <select
-                                    name="role"
-                                    value={formData.role}
-                                    onChange={handleChange}
-                                    className="bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-white outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all font-medium appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2394a3b8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:12px_12px] bg-[right_1rem_center] bg-no-repeat"
-                                >
-                                    <option value="INTERVIEWEE" className="bg-slate-800">Interviewee</option>
-                                    <option value="INTERVIEWER" className="bg-slate-800">Interviewer</option>
-                                    <option value="HR" className="bg-slate-800">HR</option>
-                                </select>
-                            </div>
 
                             <Button
                                 type="submit"
@@ -150,9 +114,9 @@ const Signup = () => {
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Creating account...
+                                        Sending OTP...
                                     </span>
-                                ) : 'Sign Up'}
+                                ) : 'Send OTP'}
                             </Button>
 
                             <div className="relative mt-6 mb-6">
@@ -160,12 +124,12 @@ const Signup = () => {
                                     <div className="w-full border-t border-slate-700/50"></div>
                                 </div>
                                 <div className="relative flex justify-center text-xs">
-                                    <span className="px-2 bg-slate-900/60 text-slate-500 font-medium">Or continue with</span>
+                                    <span className="px-2 bg-slate-900/60 text-slate-500 font-medium">Or</span>
                                 </div>
                             </div>
 
                             <p className="text-center text-slate-400 text-sm font-medium mt-6">
-                                Already have an account?{' '}
+                                Remember your password?{' '}
                                 <Link to="/login" className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors">
                                     Log in
                                 </Link>
@@ -174,14 +138,23 @@ const Signup = () => {
                     )}
 
                     {step === 2 && (
-                        <form onSubmit={handleVerify} className="space-y-6">
+                        <form onSubmit={handleResetSubmit} className="space-y-6">
                             <Input
                                 label="One-Time Password"
-                                value={otp}
-                                onChange={(e) => setOtp(e.target.value)}
+                                value={resetData.otp}
+                                onChange={(e) => setResetData({ ...resetData, otp: e.target.value })}
                                 placeholder="123456"
-                                className="text-center tracking-[0.5em] text-xl font-mono py-4 bg-slate-900/80"
+                                className="tracking-[0.5em] text-xl font-mono py-4 bg-slate-900/80 text-center"
                                 maxLength={6}
+                                required
+                            />
+                            <Input
+                                label="New Password"
+                                type="password"
+                                name="newPassword"
+                                placeholder="••••••••"
+                                value={resetData.newPassword}
+                                onChange={(e) => setResetData({ ...resetData, newPassword: e.target.value })}
                                 required
                             />
                             <Button
@@ -195,9 +168,9 @@ const Signup = () => {
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Verifying...
+                                        Resetting password...
                                     </span>
-                                ) : 'Verify OTP'}
+                                ) : 'Reset Password'}
                             </Button>
                         </form>
                     )}
@@ -207,4 +180,4 @@ const Signup = () => {
     );
 };
 
-export default Signup;
+export default ForgotPassword;

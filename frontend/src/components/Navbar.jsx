@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const Navbar = () => {
     const location = useLocation();
     const { user, logout } = useAuth();
-    const isAuthPage = ['/login', '/signup'].includes(location.pathname);
+    const isAuthPage = ['/login', '/signup', '/forgot-password'].includes(location.pathname);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     return (
@@ -33,12 +33,12 @@ const Navbar = () => {
                                         <Button variant="ghost" className="text-slate-300">Question Bank</Button>
                                     </Link>
                                 )}
-                                <span className="text-slate-300 text-sm mr-2">Hello, {user.name}</span>
                                 {user.role === 'HR' && (
                                     <Link to="/admin">
-                                        <Button variant="ghost">Admin Dashboard</Button>
+                                        <Button variant="ghost" className="text-slate-300">Admin Dashboard</Button>
                                     </Link>
                                 )}
+                                <span className="text-slate-300 text-sm mr-2">Hello, {user.name}</span>
                                 <Button variant="secondary" onClick={logout}>Log out</Button>
                             </>
                         ) : (

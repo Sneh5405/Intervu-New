@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 import RoleRoute from './components/RoleRoute';
 import AdminDashboard from './pages/AdminDashboard';
 import Interviews from './pages/Interviews';
@@ -25,6 +26,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
               {/* Protected Role-Based Routes */}
               <Route element={<RoleRoute allowedRoles={['HR', 'ADMIN']} />}>

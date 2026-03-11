@@ -1,8 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
+import { useAuth } from '../context/AuthContext';
 
 const Home = () => {
+    const { user } = useAuth();
+
     return (
         <div className="min-h-screen bg-slate-900 pt-16">
             <div className="relative overflow-hidden">
@@ -26,16 +29,26 @@ const Home = () => {
                     </p>
 
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <Link to="/signup">
-                            <Button className="text-lg px-8 py-4">
-                                Get Started
-                            </Button>
-                        </Link>
-                        <Link to="/login">
-                            <Button variant="outline" className="text-lg px-8 py-4">
-                                Sign In
-                            </Button>
-                        </Link>
+                        {user ? (
+                            <Link to="/interviews">
+                                <Button className="text-lg px-8 py-4">
+                                    Go to Interviews
+                                </Button>
+                            </Link>
+                        ) : (
+                            <>
+                                <Link to="/signup">
+                                    <Button className="text-lg px-8 py-4">
+                                        Sign Up
+                                    </Button>
+                                </Link>
+                                <Link to="/login">
+                                    <Button variant="outline" className="text-lg px-8 py-4">
+                                        Log In
+                                    </Button>
+                                </Link>
+                            </>
+                        )}
                     </div>
 
                     {/* Feature Grid */}
