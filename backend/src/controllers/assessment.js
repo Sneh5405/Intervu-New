@@ -27,10 +27,20 @@ exports.getAssessments = async (req, res) => {
             where: { hrId: req.user.id },
             include: { _count: { select: { candidates: true, questions: true } } }
         });
-        res.json(assessments);
+        
+        const now = new Date();
+        const activeAssessments = assessments.filter(a => {
+            if (a.startTime) {
+                const end = new Date(a.startTime.getTime() + a.duration * 60000);
+                return end > now;
+            }
+            return true;
+        });
+
+        res.json(activeAssessments);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Failed to get assessments" });
+        res.status(500).json({ error: "Failed to fetch assessments" });
     }
 };
 
@@ -154,11 +164,22 @@ exports.getUpcomingAssessments = async (req, res) => {
         const upcoming = await prisma.assessmentCandidate.findMany({
             where: {
                 candidateId: req.user.id,
-                status: 'ACCEPTED'
+                status: { not: 'COMPLETED' }
             },
             include: { assessment: true }
         });
-        res.json(upcoming);
+        
+        const now = new Date();
+        const activeUpcoming = upcoming.filter(u => {
+            const a = u.assessment;
+            if (a.startTime) {
+                const end = new Date(a.startTime.getTime() + a.duration * 60000);
+                return end > now;
+            }
+            return true;
+        });
+
+        res.json(activeUpcoming);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Failed to fetch upcoming assessments" });
@@ -172,12 +193,14 @@ exports.startAssessment = async (req, res) => {
             where: { assessmentId_candidateId: { assessmentId: parseInt(id), candidateId: req.user.id } }
         });
 
-        if (!invite || invite.status !== 'ACCEPTED') return res.status(400).json({ error: "Cannot start assessment" });
+        if (!invite || (invite.status !== 'ACCEPTED' && invite.status !== 'IN_PROGRESS')) {
+            return res.status(400).json({ error: "Cannot start or resume assessment" });
+        }
 
         const assessment = await prisma.assessment.findUnique({ where: { id: parseInt(id) } });
 
         let remainingSeconds = assessment.duration * 60;
-        let actualStart = new Date();
+        let actualStart = invite.startedAt || new Date();
 
         // Strict timer logic based on fixed schedule
         if (assessment.startTime) {
@@ -186,7 +209,11 @@ exports.startAssessment = async (req, res) => {
             const diffSeconds = Math.floor((now - start) / 1000);
             
             if (diffSeconds < 0) {
-                return res.status(400).json({ error: "Assessment has not started yet" });
+                return res.status(403).json({ 
+                    error: "Assessment has not started yet",
+                    isEarly: true,
+                    startTime: assessment.startTime
+                });
             }
             
             remainingSeconds = (assessment.duration * 60) - diffSeconds;
@@ -194,7 +221,14 @@ exports.startAssessment = async (req, res) => {
             if (remainingSeconds <= 0) {
                 return res.status(400).json({ error: "Assessment time has expired" });
             }
-            actualStart = now;
+            if (invite.status === 'ACCEPTED') actualStart = now;
+        } else if (invite.status === 'IN_PROGRESS') {
+            // For flexible assessments, calculate remaining time based on when they actually started
+            const diffSeconds = Math.floor((new Date() - invite.startedAt) / 1000);
+            remainingSeconds = (assessment.duration * 60) - diffSeconds;
+            if (remainingSeconds <= 0) {
+                return res.status(400).json({ error: "Assessment time has expired" });
+            }
         }
 
         const updated = await prisma.assessmentCandidate.update({

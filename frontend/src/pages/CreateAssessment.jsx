@@ -7,6 +7,7 @@ const CreateAssessment = () => {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [duration, setDuration] = useState(60);
+    const [startTime, setStartTime] = useState('');
     const [availableQuestions, setAvailableQuestions] = useState([]);
     const [selectedQuestionIds, setSelectedQuestionIds] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -40,7 +41,8 @@ const CreateAssessment = () => {
             const res = await api.post('/assessments', {
                 title,
                 description,
-                duration: parseInt(duration)
+                duration: parseInt(duration),
+                startTime: startTime || null
             });
 
             await api.post(`/assessments/${res.data.id}/questions`, {
@@ -74,6 +76,10 @@ const CreateAssessment = () => {
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">Duration (Minutes)</label>
                             <input type="number" required value={duration} onChange={e => setDuration(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" min="10" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-2">Start Time (Optional)</label>
+                            <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" />
                         </div>
                     </div>
                 </div>

@@ -52,7 +52,7 @@ function App() {
               </Route>
 
               {/* Online Assessment Routes */}
-              <Route element={<RoleRoute allowedRoles={['HR', 'ADMIN']} />}>
+              <Route element={<RoleRoute allowedRoles={['HR', 'ADMIN', 'INTERVIEWER']} />}>
                 <Route path="/assessments" element={<AssessmentsHR />} />
                 <Route path="/assessments/create" element={<CreateAssessment />} />
               </Route>

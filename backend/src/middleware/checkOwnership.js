@@ -1,5 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const checkOwnership = (model, idParam = 'id', userIdField = 'userId') => {
     return async (req, res, next) => {

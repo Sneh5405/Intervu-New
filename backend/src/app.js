@@ -3,17 +3,24 @@ const app = express();
 const port = 3000;
 
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 const signupRoute = require("./routes/signup");
 const authRoute = require("./routes/auth");
 const verifyOtpRoute = require("./routes/verifyOtp");
 const prisma = require("./config/prisma");
 
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, 
+    message: { error: "Too many authentication requests from this IP, please try again later." }
+});
+
 app.use(express.json());
 app.use(cors());
 
-app.use("/api", signupRoute);
-app.use("/api", authRoute);
-app.use("/api", verifyOtpRoute);
+app.use("/api", authLimiter, signupRoute);
+app.use("/api", authLimiter, authRoute);
+app.use("/api", authLimiter, verifyOtpRoute);
 const adminRoute = require("./routes/admin");
 app.use("/api/admin", adminRoute);
 const interviewRoute = require("./routes/interview");

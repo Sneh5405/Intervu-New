@@ -3,8 +3,7 @@ const adminRouter = express.Router();
 const authenticateToken = require("../middleware/auth");
 const checkRole = require("../middleware/checkRole");
 const checkStatus = require("../middleware/checkStatus");
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Apply auth and status checks to all admin routes
 adminRouter.use(authenticateToken);

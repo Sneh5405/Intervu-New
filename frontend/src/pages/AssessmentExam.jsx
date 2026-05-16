@@ -10,23 +10,59 @@ const AssessmentExam = () => {
     const [activeIdx, setActiveIdx] = useState(0);
     const [loading, setLoading] = useState(true);
     const [answers, setAnswers] = useState({}); 
-    const [timeLeft, setTimeLeft] = useState(0); 
+    const [timeLeft, setTimeLeft] = useState(0);
+    const [waitingMode, setWaitingMode] = useState(false);
+    const [targetStartTime, setTargetStartTime] = useState(null);
+    const [waitLeft, setWaitLeft] = useState(0);
 
-    useEffect(() => {
-        const startExam = async () => {
-            try {
-                const res = await api.post(`/assessments/${id}/start`);
-                setQuestions(res.data.questions);
-                setTimeLeft(res.data.duration); 
+    const startExam = async () => {
+        try {
+            const res = await api.post(`/assessments/${id}/start`);
+            setQuestions(res.data.questions);
+            setTimeLeft(res.data.duration); 
+            setWaitingMode(false);
+            setLoading(false);
+        } catch (err) {
+            if (err.response?.data?.isEarly) {
+                setWaitingMode(true);
+                setTargetStartTime(err.response.data.startTime);
                 setLoading(false);
-            } catch (err) {
+            } else {
                 console.error(err);
                 alert("Could not start exam. Have you accepted the invite or already completed it?");
                 navigate('/');
             }
-        };
+        }
+    };
+
+    useEffect(() => {
         startExam();
     }, [id]);
+
+    useEffect(() => {
+        if (!waitingMode || !targetStartTime) return;
+        
+        const calcWait = () => {
+            const now = new Date();
+            const start = new Date(targetStartTime);
+            const diff = Math.floor((start - now) / 1000);
+            return diff > 0 ? diff : 0;
+        };
+
+        setWaitLeft(calcWait());
+
+        const timerId = setInterval(() => {
+            const w = calcWait();
+            setWaitLeft(w);
+            if (w <= 0) {
+                clearInterval(timerId);
+                setLoading(true);
+                startExam();
+            }
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }, [waitingMode, targetStartTime]);
 
     useEffect(() => {
         if (timeLeft <= 0 && !loading) {
@@ -38,10 +74,11 @@ const AssessmentExam = () => {
     }, [timeLeft, loading]);
 
     const formatTime = (seconds) => {
-        if (!seconds) return '00:00';
-        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        if (!seconds || seconds < 0) return '00:00';
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
         const s = (seconds % 60).toString().padStart(2, '0');
-        return `${m}:${s}`;
+        return h > 0 ? `${h}:${m}:${s}` : `${m}:${s}`;
     };
 
     const handleCodeChange = (value) => {
@@ -78,6 +115,20 @@ const AssessmentExam = () => {
         <div className="h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-slate-400 font-mono">Initializing Sandbox Environment...</p>
+        </div>
+    );
+
+    if (waitingMode) return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-slate-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-lg w-full text-center shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+                <div className="text-5xl mb-6 mt-4">⏳</div>
+                <h1 className="text-3xl font-bold text-white mb-2">Assessment Starting Soon</h1>
+                <p className="text-slate-400 mb-8">Please wait. The exam will automatically launch when the timer reaches zero.</p>
+                <div className="text-5xl font-mono font-bold text-indigo-400 bg-slate-950 py-6 rounded-2xl border border-slate-800 shadow-inner">
+                    {formatTime(waitLeft)}
+                </div>
+            </div>
         </div>
     );
 

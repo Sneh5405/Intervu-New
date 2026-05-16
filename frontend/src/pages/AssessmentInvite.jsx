@@ -94,7 +94,7 @@ const AssessmentInvite = () => {
                         onClick={handleAccept}
                         className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-lg py-4 px-4 rounded-xl transition-all shadow-[0_0_20px_rgba(79,70,229,0.4)] hover:shadow-[0_0_30px_rgba(79,70,229,0.6)] transform hover:-translate-y-0.5"
                     >
-                        {!user ? 'Sign up to Accept & Start' : 'Accept & Start Exam'}
+                        {!user ? 'Sign up to Accept' : 'Accept & Register'}
                     </button>
                 ) : inviteDetails.status === 'COMPLETED' ? (
                     <div className="text-center text-emerald-400 font-bold p-4 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-lg">

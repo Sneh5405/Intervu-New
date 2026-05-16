@@ -1,6 +1,5 @@
 const { getIo } = require('../socket');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Create Interview (By Email)
 const createInterview = async (req, res) => {
@@ -200,6 +199,9 @@ const getInterviewById = async (req, res) => {
         // Let's implement specific check here for now.
 
         const { role, id: userId } = req.user;
+        if (role === 'HR' && interview.hrId !== userId) {
+            return res.status(403).json({ error: "Access denied: Not your interview" });
+        }
         if (role !== 'HR' && interview.interviewerId !== userId && interview.intervieweeId !== userId) {
             return res.status(403).json({ error: "Access denied" });
         }
@@ -236,6 +238,11 @@ const updateInterview = async (req, res) => {
 
         if (role !== 'HR') {
             return res.status(403).json({ error: "Only HR can edit interview details" });
+        }
+
+        const existing = await prisma.interview.findUnique({ where: { id: parseInt(id) } });
+        if (!existing || existing.hrId !== req.user.id) {
+            return res.status(403).json({ error: "Access denied: Not your interview" });
         }
 
         const interview = await prisma.interview.update({
