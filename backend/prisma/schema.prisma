@@ -24,6 +24,7 @@ model User {
   assessmentsCreated      Assessment[]          @relation("HrAssessments")
   assessmentParticipations AssessmentCandidate[]  @relation("CandidateAssessments")
   submissions             Submission[]
+  interviewSessions       InterviewSession[]
 }
 
 model EmailOtp {
@@ -63,6 +64,7 @@ model Interview {
   interviewee         User                @relation("IntervieweeInterviews", fields: [intervieweeId], references: [id])
   interviewer         User                @relation("InterviewerInterviews", fields: [interviewerId], references: [id])
   questions           InterviewQuestion[]
+  sessions            InterviewSession[]
 }
 
 model Question {
@@ -234,4 +236,15 @@ model Submission {
   question      Question? @relation(fields: [questionId], references: [id])
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+model InterviewSession {
+  id          Int       @id @default(autoincrement())
+  interviewId Int
+  userId      Int
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
