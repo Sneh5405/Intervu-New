@@ -258,11 +258,12 @@ const InterviewDetail = () => {
                             <QuestionRunner
                                 questionAssignment={interview.questions[currentQuestionIndex]}
                                 interviewId={id}
+                                socket={socket}
                                 onNext={() => setCurrentQuestionIndex(prev => Math.min(prev + 1, interview.questions.length - 1))}
                                 onPrevious={() => setCurrentQuestionIndex(prev => Math.max(prev - 1, 0))}
                                 isFirst={currentQuestionIndex === 0}
                                 isLast={currentQuestionIndex === (interview.questions.length ? interview.questions.length - 1 : 0)}
-                                isReadOnly={!isCandidate}
+                                isReadOnly={!isCandidate && !isInterviewer}
                             />
 
                             {/* Interviewer Controls Overlay */}

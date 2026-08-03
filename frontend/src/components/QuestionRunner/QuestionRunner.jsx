@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import CodeEditor from './CodeEditor';
 import Button from '../ui/Button';
-import { interviewService, submissionService } from '../../services/api'; // Adjust path if needed
+import { interviewService, submissionService } from '../../services/api';
 
 // Simple debounce hook
 const useDebounce = (value, delay) => {
@@ -15,14 +15,14 @@ const useDebounce = (value, delay) => {
     return debouncedValue;
 };
 
-const QuestionRunner = ({ questionAssignment, interviewId, onNext, onPrevious, isLast, isFirst, isReadOnly }) => {
+const QuestionRunner = ({ questionAssignment, interviewId, socket, onNext, onPrevious, isLast, isFirst, isReadOnly }) => {
     const question = questionAssignment?.question;
 
     // Initial state from backend (candidateAnswer)
     const [answer, setAnswer] = useState(questionAssignment?.candidateAnswer || '');
     const [saveStatus, setSaveStatus] = useState('saved'); // saved, saving, error
 
-    const debouncedAnswer = useDebounce(answer, 2000); // Auto-save after 2s of inactivity
+    const debouncedAnswer = useDebounce(answer, 2000); // Auto-save fallback after 2s of inactivity
 
     // Horizontal split resizing state and handler
     const [leftWidth, setLeftWidth] = useState(50); // percentage
@@ -56,12 +56,12 @@ const QuestionRunner = ({ questionAssignment, interviewId, onNext, onPrevious, i
         setSaveStatus('saved');
     }, [questionAssignment]);
 
-    // Auto-save effect
+    // Auto-save fallback effect (when socket CRDT is not active)
     useEffect(() => {
-        if (!isReadOnly && debouncedAnswer !== (questionAssignment?.candidateAnswer || '') && debouncedAnswer !== '') {
+        if (!socket && !isReadOnly && debouncedAnswer !== (questionAssignment?.candidateAnswer || '') && debouncedAnswer !== '') {
             saveAnswerToBackend(debouncedAnswer);
         }
-    }, [debouncedAnswer, isReadOnly, questionAssignment]);
+    }, [debouncedAnswer, isReadOnly, questionAssignment, socket]);
 
     const saveAnswerToBackend = async (value) => {
         setSaveStatus('saving');
@@ -136,7 +136,17 @@ const QuestionRunner = ({ questionAssignment, interviewId, onNext, onPrevious, i
     const renderRightPanel = () => {
         switch (question.type) {
             case 'CODE':
-                return <CodeEditor value={answer} onChange={handleAnswerChange} onRun={handleRunCode} isReadOnly={isReadOnly} />;
+                return (
+                    <CodeEditor
+                        value={answer}
+                        onChange={handleAnswerChange}
+                        onRun={handleRunCode}
+                        isReadOnly={isReadOnly}
+                        socket={socket}
+                        interviewId={interviewId}
+                        questionId={question.id}
+                    />
+                );
             case 'MCQ':
                 return (
                     <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-lg p-6 flex flex-col shadow-inner h-full overflow-y-auto">

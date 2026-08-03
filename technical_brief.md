@@ -316,27 +316,17 @@ Managed via `.env` configuration files inside `/backend`:
 
 ## 11. Open Questions & Critical Risks
 
-### 🚨 Critical Risk: Missing `InterviewSession` Schema Relation
+### 🚨 Resolved Risk: Missing `InterviewSession` Schema Relation
 In [backend/src/socket.js](file:///c:/Projects/INTERVUE/backend/src/socket.js), the WebSocket server records room activity:
 *   *Line 97*: `const session = await prisma.interviewSession.create({ data: { interviewId, userId } });`
 *   *Line 146*: `await prisma.interviewSession.update({ where: { id: socket.sessionId }, data: { leftAt: new Date() } });`
 
-However, checking [backend/prisma/schema.prisma](file:///c:/Projects/INTERVUE/backend/prisma/schema.prisma) shows that **there is no `InterviewSession` model defined in the schema!** 
+This was originally a critical blocker because the `InterviewSession` model was missing from the Prisma schema.
 
-> [!WARNING]
-> This is a severe bug. Any user attempting to connect to a live interview room over WebSockets will cause a runtime DB crash (`PrismaClientKnownRequestError`) when the server tries to create an `InterviewSession` record. This completely blocks the live coding and video chat feature.
->
-> **Action Required**: Add an `InterviewSession` model to the Prisma schema:
-> ```prisma
-> model InterviewSession {
->   id          Int       @id @default(autoincrement())
->   interviewId Int
->   userId      Int
->   joinedAt    DateTime  @default(now())
->   leftAt      DateTime?
-> }
-> ```
-> Then run `npx prisma migrate dev --name add_interview_session` to update the database.
+> [!NOTE]
+> **Resolution Status**: Resolved.
+> The `InterviewSession` model has been added to [schema.prisma](file:///c:/Projects/INTERVUE/backend/prisma/schema.prisma) and its migration files have been created in [migration.sql](file:///c:/Projects/INTERVUE/backend/prisma/migrations/20260704101600_add_interview_session/migration.sql). The local Prisma client has been generated using `npx prisma generate` to prevent application crashes during socket room joins.
+
 
 ### 2. Missing Online Assessment Scoring Logic
 The schema designates a `score` field inside both `AssessmentCandidate` and `AssessmentAnswer` models. However, there is no scoring, grading, or solution checking implemented inside the assessment controllers or frontend components. Candidate answers are stored, but they are not graded.

@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Editor from '@monaco-editor/react';
+import * as Y from 'yjs';
+import { MonacoBinding } from 'y-monaco';
 import Button from '../ui/Button';
 
-const CodeEditor = ({ value, onChange, onRun, isReadOnly }) => {
+const CodeEditor = ({ value, onChange, onRun, isReadOnly, socket, interviewId, questionId }) => {
     const [language, setLanguage] = useState('javascript');
     const [output, setOutput] = useState('');
     const [isRunning, setIsRunning] = useState(false);
     const [outputHeight, setOutputHeight] = useState(160);
+
+    const editorRef = useRef(null);
+    const ydocRef = useRef(null);
+    const bindingRef = useRef(null);
 
     const handleMouseDown = (e) => {
         e.preventDefault();
@@ -28,14 +34,99 @@ const CodeEditor = ({ value, onChange, onRun, isReadOnly }) => {
         document.addEventListener('mouseup', handleMouseUp);
     };
 
+    const handleEditorMount = (editor) => {
+        editorRef.current = editor;
+    };
+
+    // CRDT Binding Effect
+    useEffect(() => {
+        if (!socket || !interviewId || !questionId || !editorRef.current) return;
+
+        const editor = editorRef.current;
+        const ydoc = new Y.Doc();
+        ydocRef.current = ydoc;
+
+        const ytext = ydoc.getText('codex');
+
+        // Create Monaco-Yjs Binding
+        const binding = new MonacoBinding(
+            ytext,
+            editor.getModel(),
+            new Set([editor])
+        );
+        bindingRef.current = binding;
+
+        // Request initial CRDT document state from backend
+        socket.emit('crdt-sync', { roomId: interviewId, questionId });
+
+        // Handle initial CRDT document state from backend
+        const handleCrdtInit = (data) => {
+            if (data.roomId === String(interviewId) && String(data.questionId) === String(questionId)) {
+                if (data.update && data.update.length > 0) {
+                    Y.applyUpdate(ydoc, new Uint8Array(data.update), 'remote');
+                } else if (data.content && ytext.toString() !== data.content) {
+                    ytext.delete(0, ytext.length);
+                    ytext.insert(0, data.content);
+                }
+            }
+        };
+
+        // Handle incoming CRDT delta updates from other participants
+        const handleCrdtUpdate = (data) => {
+            if (data.roomId === String(interviewId) && String(data.questionId) === String(questionId) && data.update) {
+                Y.applyUpdate(ydoc, new Uint8Array(data.update), 'remote');
+                if (onChange) {
+                    onChange(ytext.toString());
+                }
+            }
+        };
+
+        socket.on('crdt-init', handleCrdtInit);
+        socket.on('crdt-update', handleCrdtUpdate);
+
+        // Send local edits as CRDT binary delta updates
+        const handleLocalYdocUpdate = (update, origin) => {
+            if (origin !== 'remote') {
+                socket.emit('crdt-update', {
+                    roomId: interviewId,
+                    questionId,
+                    update: Array.from(update)
+                });
+                if (onChange) {
+                    onChange(ytext.toString());
+                }
+            }
+        };
+
+        ydoc.on('update', handleLocalYdocUpdate);
+
+        return () => {
+            ydoc.off('update', handleLocalYdocUpdate);
+            socket.off('crdt-init', handleCrdtInit);
+            socket.off('crdt-update', handleCrdtUpdate);
+            if (bindingRef.current) {
+                bindingRef.current.destroy();
+                bindingRef.current = null;
+            }
+            if (ydocRef.current) {
+                ydocRef.current.destroy();
+                ydocRef.current = null;
+            }
+        };
+    }, [socket, interviewId, questionId]);
+
     const handleEditorChange = (newValue) => {
-        onChange(newValue);
+        // Fallback for non-CRDT mode
+        if (!socket && onChange) {
+            onChange(newValue);
+        }
     };
 
     const handleRun = async () => {
         setIsRunning(true);
+        const currentCode = editorRef.current ? editorRef.current.getValue() : value;
         if (onRun) {
-            const result = await onRun(value, language);
+            const result = await onRun(currentCode, language);
             setOutput(result);
         } else {
             // Mock execution
@@ -47,7 +138,7 @@ const CodeEditor = ({ value, onChange, onRun, isReadOnly }) => {
 
                     if (language === 'javascript') {
                         // eslint-disable-next-line no-eval
-                        eval(value);
+                        eval(currentCode);
                     } else {
                         logs.push(`Execution for ${language} is not supported in this demo runner.`);
                     }
@@ -60,6 +151,7 @@ const CodeEditor = ({ value, onChange, onRun, isReadOnly }) => {
                 setIsRunning(false);
             }, 1000);
         }
+        setIsRunning(false);
     };
 
     return (
@@ -95,6 +187,7 @@ const CodeEditor = ({ value, onChange, onRun, isReadOnly }) => {
                     language={language}
                     value={value}
                     theme="vs-dark"
+                    onMount={handleEditorMount}
                     onChange={handleEditorChange}
                     options={{
                         minimap: { enabled: false },
@@ -130,3 +223,4 @@ const CodeEditor = ({ value, onChange, onRun, isReadOnly }) => {
 };
 
 export default CodeEditor;
+

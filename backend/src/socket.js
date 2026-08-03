@@ -1,5 +1,6 @@
 const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
+const Y = require("yjs");
 
 let io;
 
@@ -14,6 +15,77 @@ const initSocket = (server) => {
     });
 
     const activeSessions = new Map(); // userId -> socketId
+    const roomYDocs = new Map(); // key: `${roomId}_${questionId}` -> Y.Doc
+    const saveTimeouts = new Map(); // key: `${roomId}_${questionId}` -> setTimeout ID
+
+    const getOrCreateYDoc = async (roomId, questionId) => {
+        const key = `${roomId}_${questionId}`;
+        if (roomYDocs.has(key)) {
+            return roomYDocs.get(key);
+        }
+
+        const ydoc = new Y.Doc();
+        const ytext = ydoc.getText('codex');
+
+        // Populate initial content from database if available
+        try {
+            const interviewIdInt = parseInt(roomId);
+            const questionIdInt = parseInt(questionId);
+            if (!isNaN(interviewIdInt) && !isNaN(questionIdInt)) {
+                const iq = await prisma.interviewQuestion.findUnique({
+                    where: {
+                        interviewId_questionId: {
+                            interviewId: interviewIdInt,
+                            questionId: questionIdInt
+                        }
+                    }
+                });
+                if (iq && iq.candidateAnswer) {
+                    ytext.insert(0, iq.candidateAnswer);
+                }
+            }
+        } catch (err) {
+            console.error("Error initializing YDoc from DB:", err);
+        }
+
+        roomYDocs.set(key, ydoc);
+        return ydoc;
+    };
+
+    const scheduleDBSave = (roomId, questionId, textContent) => {
+        const key = `${roomId}_${questionId}`;
+        if (saveTimeouts.has(key)) {
+            clearTimeout(saveTimeouts.get(key));
+        }
+
+        const timeoutId = setTimeout(async () => {
+            try {
+                const interviewIdInt = parseInt(roomId);
+                const questionIdInt = parseInt(questionId);
+                if (!isNaN(interviewIdInt) && !isNaN(questionIdInt)) {
+                    await prisma.interviewQuestion.update({
+                        where: {
+                            interviewId_questionId: {
+                                interviewId: interviewIdInt,
+                                questionId: questionIdInt
+                            }
+                        },
+                        data: {
+                            candidateAnswer: textContent,
+                            submittedAt: new Date()
+                        }
+                    });
+                    console.log(`Saved CRDT document state to DB for room ${roomId}, question ${questionId}`);
+                }
+            } catch (err) {
+                console.error("Failed to persist CRDT state to DB:", err);
+            } finally {
+                saveTimeouts.delete(key);
+            }
+        }, 3000); // 3-second debounce
+
+        saveTimeouts.set(key, timeoutId);
+    };
 
     // Authentication Middleware
     io.use((socket, next) => {
@@ -114,6 +186,44 @@ const initSocket = (server) => {
             }
         });
 
+        // CRDT Sync Request (Initial State Fetch)
+        socket.on("crdt-sync", async ({ roomId, questionId }) => {
+            if (!roomId || !questionId) return;
+            const ydoc = await getOrCreateYDoc(roomId, questionId);
+            const stateVector = Y.encodeStateAsUpdate(ydoc);
+            socket.emit("crdt-init", {
+                roomId,
+                questionId,
+                update: Array.from(stateVector),
+                content: ydoc.getText('codex').toString()
+            });
+        });
+
+        // CRDT Delta Update (Live Editing Event)
+        socket.on("crdt-update", async ({ roomId, questionId, update }) => {
+            if (!roomId || !questionId || !update) return;
+
+            try {
+                const ydoc = await getOrCreateYDoc(roomId, questionId);
+                const updateBuffer = new Uint8Array(update);
+                Y.applyUpdate(ydoc, updateBuffer);
+
+                // Broadcast binary update to all other room members
+                socket.to(roomId).emit("crdt-update", {
+                    roomId,
+                    questionId,
+                    update: Array.from(updateBuffer),
+                    senderId: socket.user.id
+                });
+
+                // Debounce saving text representation to Postgres DB
+                const currentText = ydoc.getText('codex').toString();
+                scheduleDBSave(roomId, questionId, currentText);
+            } catch (err) {
+                console.error("CRDT update error:", err);
+            }
+        });
+
         // WebRTC Signaling Events
         socket.on("offer", ({ roomId, offer }) => {
             socket.to(roomId).emit("offer", { offer, userId: socket.user.id });
@@ -165,3 +275,4 @@ const getIo = () => {
 };
 
 module.exports = { initSocket, getIo };
+
