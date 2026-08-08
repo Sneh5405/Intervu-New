@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const crypto = require("crypto");
 const cache = require("../utils/cache");
+const { runInSandbox } = require("../services/sandbox");
 
 exports.createAssessment = async (req, res) => {
     try {
@@ -78,6 +79,16 @@ exports.addQuestionsToAssessment = async (req, res) => {
         
         const assessment = await prisma.assessment.findUnique({ where: { id: parseInt(id) }});
         if (!assessment || assessment.hrId !== req.user.id) return res.status(403).json({ error: "Unauthorized" });
+
+        // Check ownership of all questions being added
+        const questions = await prisma.question.findMany({
+            where: { id: { in: questionIds.map(qId => parseInt(qId)) } }
+        });
+
+        const unowned = questions.some(q => q.createdById !== req.user.id);
+        if (unowned || questions.length !== questionIds.length) {
+            return res.status(403).json({ error: "Forbidden: You can only add questions created by you" });
+        }
 
         const data = questionIds.map((qId, index) => ({
             assessmentId: parseInt(id),
@@ -334,24 +345,90 @@ exports.submitAnswer = async (req, res) => {
 exports.finishAssessment = async (req, res) => {
     try {
         const { id } = req.params;
+        const assessmentId = parseInt(id);
         
         const invite = await prisma.assessmentCandidate.findUnique({
-            where: { assessmentId_candidateId: { assessmentId: parseInt(id), candidateId: req.user.id } }
+            where: { assessmentId_candidateId: { assessmentId, candidateId: req.user.id } },
+            include: { answers: true }
         });
 
         if (!invite) return res.status(404).json({ error: "Assessment not found" });
 
+        const assessmentQuestions = await prisma.assessmentQuestion.findMany({
+            where: { assessmentId },
+            include: { question: true }
+        });
+
+        let totalScore = 0;
+        const answerMap = new Map();
+        invite.answers.forEach(ans => answerMap.set(ans.questionId, ans));
+
+        for (const aq of assessmentQuestions) {
+            const q = aq.question;
+            const maxPoints = aq.points || 10;
+            const candidateAnsRecord = answerMap.get(q.id);
+            const rawAns = candidateAnsRecord?.candidateAnswer ? candidateAnsRecord.candidateAnswer.trim() : "";
+            let qScore = 0;
+
+            if (rawAns) {
+                if (q.type === 'MCQ') {
+                    if (q.correctAnswer && rawAns.toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                        qScore = maxPoints;
+                    }
+                } else if (q.type === 'CODE') {
+                    const testCases = q.testCases;
+                    if (Array.isArray(testCases) && testCases.length > 0) {
+                        let passedCases = 0;
+                        let lang = 'javascript';
+                        if (rawAns.includes('def ') || rawAns.includes('import ') || rawAns.includes('print(')) {
+                            lang = 'python';
+                        }
+                        
+                        for (const tc of testCases) {
+                            const input = tc.input || "";
+                            const expected = (tc.output || tc.expectedOutput || "").trim();
+                            const { error, stdout } = await runInSandbox(rawAns, lang, input);
+                            if (!error && (stdout || "").trim() === expected) {
+                                passedCases++;
+                            }
+                        }
+
+                        qScore = (passedCases / testCases.length) * maxPoints;
+                    }
+                } else if (q.type === 'SCENARIO') {
+                    if (q.correctAnswer && rawAns.toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+                        qScore = maxPoints;
+                    }
+                }
+            }
+
+            if (candidateAnsRecord) {
+                await prisma.assessmentAnswer.update({
+                    where: { id: candidateAnsRecord.id },
+                    data: { score: qScore }
+                });
+            }
+
+            totalScore += qScore;
+        }
+
+        const finalScore = Math.round(totalScore * 100) / 100;
+
         await prisma.assessmentCandidate.update({
             where: { id: invite.id },
-            data: { status: 'COMPLETED', completedAt: new Date() }
+            data: { 
+                status: 'COMPLETED', 
+                score: finalScore, 
+                completedAt: new Date() 
+            }
         });
 
         await cache.del(`assessment:id:${id}`);
         await cache.del(`assessments:candidate:${req.user.id}`);
 
-        res.json({ message: "Assessment completed" });
+        res.json({ message: "Assessment completed", score: finalScore });
     } catch (error) {
-        console.error(error);
+        console.error("Finish Assessment Error:", error);
         res.status(500).json({ error: "Failed to finish assessment" });
     }
 };

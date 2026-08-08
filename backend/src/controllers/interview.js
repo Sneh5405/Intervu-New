@@ -428,6 +428,11 @@ const addQuestionToInterview = async (req, res) => {
         const question = await prisma.question.findUnique({ where: { id: parseInt(questionId) } });
         if (!question) return res.status(404).json({ error: "Question not found" });
 
+        // Check ownership
+        if (question.createdById !== req.user.id) {
+            return res.status(403).json({ error: "Forbidden: You can only add questions created by you" });
+        }
+
         // Find max order for this interview
         const lastQuestion = await prisma.interviewQuestion.findFirst({
             where: { interviewId: parseInt(id) },

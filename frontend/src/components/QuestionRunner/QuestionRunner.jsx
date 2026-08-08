@@ -88,46 +88,31 @@ const QuestionRunner = ({ questionAssignment, interviewId, socket, onNext, onPre
         }
 
         try {
-            for (let i = 0; i < question.testCases.length; i++) {
-                const tc = question.testCases[i];
-                
-                // Submit job
-                const res = await submissionService.submit({
-                    code,
-                    language,
-                    input: tc.input,
-                    questionId: question.id
-                });
-                
-                const submissionId = res.data.submissionId;
-                let status = "PENDING";
-                let output = "";
+            const res = await submissionService.submitBatch({
+                code,
+                language,
+                testCases: question.testCases,
+                questionId: question.id
+            });
 
-                // Poll for result
-                while (status === "PENDING" || status === "RUNNING") {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    const pollRes = await submissionService.poll(submissionId);
-                    status = pollRes.data.submission.status;
-                    output = pollRes.data.submission.output;
-                }
+            const { results, passedCount, totalCount, allPassed } = res.data;
 
-                if (status === "FAILED" || status === "TIMEOUT") {
-                    return `❌ Failed on Test Case #${i + 1}\n\nStatus: ${status}\nError Details:\n${output}`;
-                }
-
-                // Check correctness
-                const expectedOutput = tc.output.trim();
-                const actualOutput = (output || '').trim();
-
-                if (actualOutput !== expectedOutput) {
-                    return `❌ Wrong Answer on Test Case #${i + 1}\n\nInput:\n${tc.input}\n\nExpected Output:\n${expectedOutput}\n\nActual Output:\n${actualOutput}`;
-                }
+            if (allPassed) {
+                return `✅ Accepted! All ${totalCount} test cases passed.`;
             }
 
-            return `✅ Accepted! All ${question.testCases.length} test cases passed.`;
+            const firstFailed = results.find(r => !r.passed);
+            if (firstFailed) {
+                if (firstFailed.status === "FAILED" || firstFailed.status === "TIMEOUT") {
+                    return `❌ Failed on Test Case #${firstFailed.testCaseIndex}\n\nStatus: ${firstFailed.status}\nError Details:\n${firstFailed.actualOutput}`;
+                }
+                return `❌ Wrong Answer on Test Case #${firstFailed.testCaseIndex}\n\nInput:\n${firstFailed.input}\n\nExpected Output:\n${firstFailed.expectedOutput}\n\nActual Output:\n${firstFailed.actualOutput}`;
+            }
+
+            return `Passed ${passedCount}/${totalCount} test cases.`;
         } catch (err) {
             console.error("Code evaluation error:", err);
-            return `Evaluation Service Error: ${err.message || "Failed to contact execution engine"}`;
+            return `Evaluation Service Error: ${err.response?.data?.error || err.message || "Failed to contact execution engine"}`;
         }
     };
 

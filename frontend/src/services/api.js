@@ -35,6 +35,7 @@ export const questionService = {
 
 export const submissionService = {
     submit: (data) => api.post('/submissions', data),
+    submitBatch: (data) => api.post('/submissions/batch', data),
     poll: (id) => api.get(`/submissions/${id}`),
 };
 
